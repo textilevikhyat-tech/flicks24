@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@layer base {
+  body {
+    @apply bg-flicks-dark text-white font-inter;
+  }
+  
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-flicks-surface;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gradient-to-b from-flicks-primary to-flicks-secondary rounded-full;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/5 backdrop-blur-md border border-white/10;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r from-flicks-primary to-flicks-secondary bg-clip-text text-transparent;
+  }
+  
+  .story-ring {
+    @apply bg-gradient-to-tr from-flicks-primary via-flicks-secondary to-yellow-500 p-[2px] rounded-full;
+  }
+  
+  .like-animation {
+    animation: likeBurst 0.5s ease-out forwards;
+  }
+  
+  @keyframes likeBurst {
+    0% { transform: scale(0); opacity: 1; }
+    100% { transform: scale(2); opacity: 0; }
+  }
+}
