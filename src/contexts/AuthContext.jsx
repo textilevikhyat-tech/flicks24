@@ -12,16 +12,28 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const session = supabase.auth.getSession()
-    setUser(session?.user || null)
-    setLoading(false)
-
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    // Get initial session
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
       setUser(session?.user || null)
       setLoading(false)
-    })
+    }
+    
+    getSession()
 
-    return () => listener?.unsubscribe()
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null)
+        setLoading(false)
+      }
+    )
+
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe()
+      }
+    }
   }, [])
 
   const login = async (email, password) => {
@@ -34,7 +46,12 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({ 
       email, 
       password,
-      options: { data: { username, avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}` } }
+      options: { 
+        data: { 
+          username, 
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}` 
+        } 
+      }
     })
     if (error) throw error
     return data
