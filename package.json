@@ -11,12 +11,11 @@
     "axios": "^1.4.0",
     "react-icons": "^4.10.1",
     "react-helmet-async": "^1.3.0",
-    "react-quote-generator": "^1.0.0",
-    "emoji-picker-react": "^4.5.0",
-    "react-image-crop": "^10.1.5",
-    "react-share": "^4.4.1",
     "socket.io-client": "^4.6.0",
-    "react-intersection-observer": "^9.5.0"
+    "react-intersection-observer": "^9.5.0",
+    "react-share": "^4.4.1",
+    "emoji-picker-react": "^4.5.0",
+    "react-image-crop": "^10.1.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",
