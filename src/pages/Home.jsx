@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../services/supabase'
-import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiSend, FiSmile } from 'react-icons/fi'
+import { FiHeart, FiMessageCircle, FiShare2, FiBookmark, FiMoreHorizontal, FiSend, FiSmile, FiThumbsUp, FiHeart as FiHeartFilled, FiFrown, FiAngry } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
+import Stories from '../components/Stories'
 
 const Home = () => {
   const { user } = useAuth()
@@ -11,17 +12,31 @@ const Home = () => {
   const [loading, setLoading] = useState(true)
   const [commentText, setCommentText] = useState({})
   const [showComments, setShowComments] = useState({})
-  const [likedPosts, setLikedPosts] = useState({})
+  const [showReactions, setShowReactions] = useState({})
+  const [postReactions, setPostReactions] = useState({})
+  const reactionRefs = useRef({})
 
-  const stories = [
-    { id: 1, username: 'Your Story', avatar: user?.user_metadata?.avatar, isAdd: true },
-    { id: 2, username: 'alex_chen', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', isLive: true },
-    { id: 3, username: 'emily_wilson', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emily', isLive: false },
-    { id: 4, username: 'mike_johnson', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike', isLive: false },
+  // Reaction options
+  const reactions = [
+    { type: 'like', icon: <FiThumbsUp className="w-6 h-6 text-blue-500" />, label: 'Like' },
+    { type: 'love', icon: <FiHeartFilled className="w-6 h-6 text-red-500" />, label: 'Love' },
+    { type: 'wow', icon: <span className="text-2xl">😮</span>, label: 'Wow' },
+    { type: 'sad', icon: <FiFrown className="w-6 h-6 text-yellow-500" />, label: 'Sad' },
+    { type: 'angry', icon: <FiAngry className="w-6 h-6 text-red-400" />, label: 'Angry' },
   ]
 
   useEffect(() => {
     fetchPosts()
+    // Click outside to close reaction picker
+    const handleClickOutside = (e) => {
+      Object.keys(showReactions).forEach(postId => {
+        if (reactionRefs.current[postId] && !reactionRefs.current[postId].contains(e.target)) {
+          setShowReactions(prev => ({ ...prev, [postId]: false }))
+        }
+      })
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const fetchPosts = async () => {
@@ -32,22 +47,27 @@ const Home = () => {
     
     if (data) {
       setPosts(data)
-      // Initialize liked states
-      const likes = {}
-      data.forEach(post => { likes[post.id] = false })
-      setLikedPosts(likes)
+      // Initialize reaction states
+      const reactionsState = {}
+      data.forEach(post => { reactionsState[post.id] = { type: null, count: 0 } })
+      setPostReactions(reactionsState)
     }
     setLoading(false)
   }
 
-  const handleLike = async (postId) => {
-    setLikedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
+  const handleReaction = async (postId, reactionType) => {
+    setPostReactions(prev => ({
+      ...prev,
+      [postId]: { type: reactionType, count: (prev[postId]?.count || 0) + 1 }
+    }))
+    setShowReactions(prev => ({ ...prev, [postId]: false }))
     
-    // Update likes in database
-    await supabase.rpc('toggle_like', { post_id: postId, user_id: user.id })
-    
-    // Refresh posts to update like count
-    fetchPosts()
+    // Update in database
+    await supabase.from('post_reactions').upsert({
+      post_id: postId,
+      user_id: user.id,
+      reaction_type: reactionType
+    })
   }
 
   const handleComment = async (postId) => {
@@ -63,17 +83,14 @@ const Home = () => {
     fetchPosts()
   }
 
-  const handleShare = async (post) => {
-    const shareUrl = `${window.location.origin}/post/${post.id}`
-    try {
-      await navigator.share({
-        title: 'Check out this post',
-        text: post.content,
-        url: shareUrl
-      })
-    } catch (err) {
-      navigator.clipboard.writeText(shareUrl)
-      alert('Link copied to clipboard!')
+  const getReactionIcon = (type) => {
+    switch(type) {
+      case 'like': return <FiThumbsUp className="w-4 h-4 text-blue-500" />
+      case 'love': return <FiHeartFilled className="w-4 h-4 text-red-500" />
+      case 'wow': return <span className="text-sm">😮</span>
+      case 'sad': return <FiFrown className="w-4 h-4 text-yellow-500" />
+      case 'angry': return <FiAngry className="w-4 h-4 text-red-400" />
+      default: return <FiHeart className="w-4 h-4" />
     }
   }
 
@@ -87,26 +104,8 @@ const Home = () => {
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      {/* Stories Row */}
-      <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-4 mb-4">
-        {stories.map((story) => (
-          <div key={story.id} className="flex flex-col items-center gap-1 cursor-pointer">
-            <div className={`${story.isAdd ? 'bg-gradient-to-r from-flicks-primary to-flicks-secondary p-[2px] rounded-full' : 'story-ring'}`}>
-              <div className="w-16 h-16 rounded-full bg-flicks-surface flex items-center justify-center overflow-hidden">
-                {story.isAdd ? (
-                  <div className="w-full h-full bg-gradient-to-br from-flicks-primary to-flicks-secondary flex items-center justify-center">
-                    <span className="text-2xl">+</span>
-                  </div>
-                ) : (
-                  <img src={story.avatar} alt={story.username} className="w-full h-full object-cover" />
-                )}
-              </div>
-            </div>
-            <span className="text-xs text-gray-400">{story.username}</span>
-            {story.isLive && <span className="text-[10px] text-red-500 -mt-1">● Live</span>}
-          </div>
-        ))}
-      </div>
+      {/* Stories Component */}
+      <Stories />
 
       {/* Create Post */}
       <div className="glass rounded-2xl p-4 mb-6">
@@ -153,23 +152,58 @@ const Home = () => {
               <img src={post.image_url} alt="Post" className="rounded-xl mb-3 w-full" />
             )}
 
-            {/* Like & Comment Counts */}
+            {/* Reactions & Comments Count */}
             <div className="flex justify-between text-sm text-gray-400 mb-2">
-              <span>{post.likes_count || 0} likes</span>
+              <div className="flex items-center gap-1">
+                {postReactions[post.id]?.type ? (
+                  <div className="flex items-center gap-1">
+                    {getReactionIcon(postReactions[post.id].type)}
+                    <span>{postReactions[post.id].count}</span>
+                  </div>
+                ) : (
+                  <span>0 reactions</span>
+                )}
+              </div>
               <span>{post.comments_count || 0} comments</span>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex justify-between pt-3 border-t border-white/10">
-              <button onClick={() => handleLike(post.id)} className={`flex items-center gap-2 transition ${likedPosts[post.id] ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}>
-                <FiHeart className={likedPosts[post.id] ? 'fill-red-500' : ''} /> Like
-              </button>
+            {/* Action Buttons with Reactions */}
+            <div className="flex justify-between pt-3 border-t border-white/10 relative">
+              {/* Like Button with Reaction Picker */}
+              <div className="relative" ref={el => reactionRefs.current[post.id] = el}>
+                <button 
+                  onClick={() => setShowReactions(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
+                  className="flex items-center gap-2 text-gray-400 hover:text-flicks-primary transition"
+                >
+                  {postReactions[post.id]?.type ? getReactionIcon(postReactions[post.id].type) : <FiHeart />}
+                  {postReactions[post.id]?.type ? 'Reacted' : 'Like'}
+                </button>
+                
+                {/* Reaction Picker */}
+                {showReactions[post.id] && (
+                  <div className="absolute bottom-full left-0 mb-2 bg-flicks-surface rounded-full p-2 flex gap-2 shadow-xl z-10">
+                    {reactions.map(react => (
+                      <button
+                        key={react.type}
+                        onClick={() => handleReaction(post.id, react.type)}
+                        className="hover:scale-125 transition-transform p-1"
+                        title={react.label}
+                      >
+                        {react.icon}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <button onClick={() => setShowComments(prev => ({ ...prev, [post.id]: !prev[post.id] }))} className="flex items-center gap-2 text-gray-400 hover:text-flicks-secondary transition">
                 <FiMessageCircle /> Comment
               </button>
-              <button onClick={() => handleShare(post)} className="flex items-center gap-2 text-gray-400 hover:text-green-500 transition">
+              
+              <button className="flex items-center gap-2 text-gray-400 hover:text-green-500 transition">
                 <FiShare2 /> Share
               </button>
+              
               <button className="flex items-center gap-2 text-gray-400 hover:text-yellow-500 transition">
                 <FiBookmark /> Save
               </button>
@@ -190,13 +224,29 @@ const Home = () => {
                     <FiSend className="w-4 h-4" />
                   </button>
                 </div>
-                {/* Mock Comments */}
-                <div className="mt-3 space-y-2">
+                
+                {/* Comments List */}
+                <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
                   <div className="flex gap-2">
-                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=commenter1" alt="" className="w-6 h-6 rounded-full" />
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=user1" alt="" className="w-6 h-6 rounded-full" />
                     <div className="flex-1 bg-white/5 rounded-lg p-2">
                       <p className="text-xs font-semibold">john_doe</p>
                       <p className="text-sm">Great post! 🔥</p>
+                      <div className="flex gap-2 mt-1 text-xs text-gray-500">
+                        <button className="hover:text-flicks-primary">Like</button>
+                        <button className="hover:text-flicks-primary">Reply</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=user2" alt="" className="w-6 h-6 rounded-full" />
+                    <div className="flex-1 bg-white/5 rounded-lg p-2">
+                      <p className="text-xs font-semibold">jane_doe</p>
+                      <p className="text-sm">So true! 💯</p>
+                      <div className="flex gap-2 mt-1 text-xs text-gray-500">
+                        <button className="hover:text-flicks-primary">Like</button>
+                        <button className="hover:text-flicks-primary">Reply</button>
+                      </div>
                     </div>
                   </div>
                 </div>
