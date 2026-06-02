@@ -1,90 +1,199 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../services/supabase'
 import { Link } from 'react-router-dom'
-import { FiHeart, FiMessageCircle, FiUserPlus, FiShare2, FiCheckCircle, FiClock } from 'react-icons/fi'
+import { 
+  FiHeart, FiMessageCircle, FiUserPlus, FiShare2, FiCheckCircle,
+  FiClock, FiMoreHorizontal, FiCheck, FiX, FiLoader
+} from 'react-icons/fi'
 
 const Notifications = () => {
   const { user } = useAuth()
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState('all')
 
-  // Mock notifications
-  const mockNotifications = [
-    { id: 1, type: 'like', from: 'Alex Chen', fromAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', message: 'liked your post', time: '5 minutes ago', read: false, postId: 1 },
-    { id: 2, type: 'comment', from: 'Emily Wilson', fromAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emily', message: 'commented on your post', time: '1 hour ago', read: false, postId: 2 },
-    { id: 3, type: 'follow', from: 'Mike Johnson', fromAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike', message: 'started following you', time: '3 hours ago', read: true },
-    { id: 4, type: 'share', from: 'Sarah Chen', fromAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah', message: 'shared your post', time: 'Yesterday', read: true, postId: 3 },
-    { id: 5, type: 'circle', from: 'Tech Circle', fromAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Tech', message: 'accepted your join request', time: '2 days ago', read: true },
-  ]
+  const fetchNotifications = useCallback(async () => {
+    let query = supabase
+      .from('notifications')
+      .select(`
+        *,
+        from_user:users!from_user_id(username, avatar)
+      `)
+      .eq('user_id', user?.id)
+      .order('created_at', { ascending: false })
+
+    if (filter !== 'all') {
+      query = query.eq('type', filter)
+    }
+
+    const { data, error } = await query.limit(100)
+
+    if (data) {
+      const transformed = data.map(notif => ({
+        ...notif,
+        time_ago: getTimeAgo(notif.created_at)
+      }))
+      setNotifications(transformed)
+    }
+    setLoading(false)
+  }, [user?.id, filter])
 
   useEffect(() => {
-    setNotifications(mockNotifications)
-    setLoading(false)
-  }, [])
+    fetchNotifications()
 
-  const markAsRead = (id) => {
-    setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n))
-  }
+    // Subscribe to new notifications
+    const subscription = supabase
+      .channel('notifications')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user?.id}` }, () => {
+        fetchNotifications()
+      })
+      .subscribe()
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, read: true })))
+    return () => subscription.unsubscribe()
+  }, [fetchNotifications, user?.id])
+
+  const getTimeAgo = (date) => {
+    const seconds = Math.floor((new Date() - new Date(date)) / 1000)
+    if (seconds < 60) return `${seconds}s ago`
+    const minutes = Math.floor(seconds / 60)
+    if (minutes < 60) return `${minutes}m ago`
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return `${hours}h ago`
+    return `${Math.floor(hours / 24)}d ago`
   }
 
   const getIcon = (type) => {
     switch(type) {
-      case 'like': return <FiHeart className="text-red-500" />
-      case 'comment': return <FiMessageCircle className="text-flicks-secondary" />
-      case 'follow': return <FiUserPlus className="text-green-500" />
-      case 'share': return <FiShare2 className="text-purple-500" />
-      default: return <FiCheckCircle className="text-yellow-500" />
+      case 'like': return <FiHeart className="w-5 h-5 text-red-500" />
+      case 'comment': return <FiMessageCircle className="w-5 h-5 text-flicks-secondary" />
+      case 'follow': return <FiUserPlus className="w-5 h-5 text-green-500" />
+      case 'share': return <FiShare2 className="w-5 h-5 text-purple-500" />
+      case 'chain_join': return <FiCheckCircle className="w-5 h-5 text-yellow-500" />
+      default: return <FiCheckCircle className="w-5 h-5 text-gray-500" />
     }
   }
 
-  if (loading) return <div className="p-4 text-center">Loading...</div>
+  const getMessage = (notif) => {
+    switch(notif.type) {
+      case 'like': return `${notif.from_user?.username} liked your post`
+      case 'comment': return `${notif.from_user?.username} commented: "${notif.content?.substring(0, 50)}${notif.content?.length > 50 ? '...' : ''}"`
+      case 'follow': return `${notif.from_user?.username} started following you`
+      case 'share': return `${notif.from_user?.username} shared your post`
+      case 'chain_join': return `${notif.from_user?.username} joined your chain`
+      default: return notif.message
+    }
+  }
+
+  const markAsRead = async (id) => {
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id)
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
+  }
+
+  const markAllAsRead = async () => {
+    await supabase.from('notifications').update({ is_read: true }).eq('user_id', user?.id)
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+  }
+
+  const deleteNotification = async (id) => {
+    await supabase.from('notifications').delete().eq('id', id)
+    setNotifications(prev => prev.filter(n => n.id !== id))
+  }
+
+  const unreadCount = notifications.filter(n => !n.is_read).length
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto p-4">
+        <div className="animate-pulse">
+          <div className="h-10 bg-flicks-surface rounded-2xl mb-4"></div>
+          <div className="h-20 bg-flicks-surface rounded-2xl mb-3"></div>
+          <div className="h-20 bg-flicks-surface rounded-2xl mb-3"></div>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-2xl mx-auto p-4 pb-20">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold gradient-text">Notifications</h1>
-        <button onClick={markAllAsRead} className="text-sm text-gray-400 hover:text-white">Mark all as read</button>
+        {unreadCount > 0 && (
+          <button onClick={markAllAsRead} className="text-sm text-gray-400 hover:text-white">
+            Mark all as read
+          </button>
+        )}
       </div>
 
-      <div className="space-y-3">
+      {/* Filters */}
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+        <button onClick={() => setFilter('all')} className={`px-3 py-1 rounded-full text-sm ${filter === 'all' ? 'gradient-bg' : 'bg-white/10'}`}>
+          All
+        </button>
+        <button onClick={() => setFilter('like')} className={`px-3 py-1 rounded-full text-sm flex items-center gap-1 ${filter === 'like' ? 'gradient-bg' : 'bg-white/10'}`}>
+          <FiHeart className="w-3 h-3" /> Likes
+        </button>
+        <button onClick={() => setFilter('comment')} className={`px-3 py-1 rounded-full text-sm flex items-center gap-1 ${filter === 'comment' ? 'gradient-bg' : 'bg-white/10'}`}>
+          <FiMessageCircle className="w-3 h-3" /> Comments
+        </button>
+        <button onClick={() => setFilter('follow')} className={`px-3 py-1 rounded-full text-sm flex items-center gap-1 ${filter === 'follow' ? 'gradient-bg' : 'bg-white/10'}`}>
+          <FiUserPlus className="w-3 h-3" /> Follows
+        </button>
+        <button onClick={() => setFilter('chain_join')} className={`px-3 py-1 rounded-full text-sm flex items-center gap-1 ${filter === 'chain_join' ? 'gradient-bg' : 'bg-white/10'}`}>
+          🔗 Chains
+        </button>
+      </div>
+
+      {/* Notifications List */}
+      <div className="space-y-2">
         {notifications.map((notif) => (
-          <Link 
-            key={notif.id} 
-            to={notif.postId ? `/post/${notif.postId}` : `/profile/${notif.from}`}
-            onClick={() => markAsRead(notif.id)}
-            className={`glass rounded-2xl p-4 flex items-center gap-3 transition ${!notif.read ? 'border-l-4 border-l-flicks-primary' : ''}`}
+          <div
+            key={notif.id}
+            className={`glass rounded-2xl p-4 transition ${!notif.is_read ? 'border-l-4 border-l-flicks-primary' : ''}`}
+            onClick={() => !notif.is_read && markAsRead(notif.id)}
           >
-            <div className="story-ring">
-              <img src={notif.fromAvatar} alt="" className="w-12 h-12 rounded-full object-cover" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">{notif.from}</span>
-                <span className="text-sm text-gray-400">{notif.message}</span>
+            <div className="flex gap-3">
+              <Link to={`/profile/${notif.from_user?.id}`} className="flex-shrink-0">
+                <div className="story-ring">
+                  <img src={notif.from_user?.avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+                </div>
+              </Link>
+              <div className="flex-1">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm">
+                      <Link to={`/profile/${notif.from_user?.id}`} className="font-semibold hover:underline">
+                        {notif.from_user?.username}
+                      </Link>
+                      {' '}
+                      <span className="text-gray-400">{getMessage(notif)}</span>
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <FiClock className="w-3 h-3 text-gray-500" />
+                      <span className="text-xs text-gray-500">{notif.time_ago}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                      {getIcon(notif.type)}
+                    </div>
+                    <button onClick={() => deleteNotification(notif.id)} className="p-1 hover:bg-white/10 rounded-full">
+                      <FiX className="w-4 h-4 text-gray-500" />
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-1 mt-1">
-                <FiClock className="w-3 h-3 text-gray-500" />
-                <span className="text-xs text-gray-500">{notif.time}</span>
-              </div>
             </div>
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-              {getIcon(notif.type)}
-            </div>
-          </Link>
+          </div>
         ))}
       </div>
 
       {notifications.length === 0 && (
-        <div className="text-center py-12">
-          <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
-            <FiCheckCircle className="w-10 h-10 text-gray-500" />
-          </div>
-          <p className="text-gray-400">No notifications yet</p>
-          <p className="text-sm text-gray-500">When someone interacts with you, it will show here</p>
+        <div className="glass rounded-2xl p-12 text-center">
+          <div className="text-5xl mb-3">🔔</div>
+          <h3 className="text-lg font-semibold mb-1">No notifications yet</h3>
+          <p className="text-gray-400 text-sm">When someone interacts with you, it will show here</p>
         </div>
       )}
     </div>
