@@ -2,6 +2,13 @@
   "name": "flicks24",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0"
+  },
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -15,18 +22,29 @@
     "react-intersection-observer": "^9.5.0",
     "react-share": "^4.4.1",
     "emoji-picker-react": "^4.5.0",
-    "react-image-crop": "^10.1.5"
+    "react-image-crop": "^10.1.5",
+    "react-loader-spinner": "^5.3.4",
+    "react-modal": "^3.16.1",
+    "react-photo-gallery": "^8.0.0",
+    "react-content-loader": "^6.2.1",
+    "react-avatar-editor": "^13.0.0",
+    "react-webcam": "^7.1.1",
+    "moment": "^2.29.4",
+    "uuid": "^9.0.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.0"
   },
   "devDependencies": {
+    "@types/react": "^18.0.28",
+    "@types/react-dom": "^18.0.11",
     "@vitejs/plugin-react": "^4.0.0",
-    "vite": "^4.3.9",
-    "tailwindcss": "^3.3.2",
     "autoprefixer": "^10.4.14",
-    "postcss": "^8.4.24"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "eslint": "^8.38.0",
+    "eslint-plugin-react": "^7.32.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.3.4",
+    "postcss": "^8.4.24",
+    "tailwindcss": "^3.3.2",
+    "vite": "^4.3.9"
   }
 }
