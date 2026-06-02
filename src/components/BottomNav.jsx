@@ -1,13 +1,13 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
-import { FiHome, FiVideo, FiUsers, FiPlusCircle, FiUser } from 'react-icons/fi'
+import { FiHome, FiVideo, FiUsers, FiPlusCircle, FiUser, FiEdit3 } from 'react-icons/fi'
 
 const BottomNav = () => {
   const navItems = [
     { path: '/', icon: FiHome, label: 'Home' },
     { path: '/reels', icon: FiVideo, label: 'Reels' },
     { path: '/circles', icon: FiUsers, label: 'Circles' },
-    { path: '/random-call', icon: FiPlusCircle, label: 'Call' },
+    { path: '/quote-maker', icon: FiEdit3, label: 'Quote' },  // ← Quote Maker Added
     { path: '/profile', icon: FiUser, label: 'Profile' },
   ]
 
@@ -26,7 +26,7 @@ const BottomNav = () => {
                 }`
               }
             >
-              <Icon className="w-6 h-6" />
+              <Icon className="w-5 h-5" />
               <span className="text-[10px] mt-1">{item.label}</span>
             </NavLink>
           )
