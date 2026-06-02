@@ -73,7 +73,7 @@ function AppContent() {
         <Route path="/search" element={<Search />} />
         <Route path="/random-call" element={<RandomCall />} />
         <Route path="/helpdesk" element={<HelpDesk />} />
-        <Route path="/chain-post/:id" element={<ChainPost />} />
+        <Route path="/chain-post/:id?" element={<ChainPost />} />
         <Route path="/quote-maker" element={<QuoteMaker />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsConditions />} />
