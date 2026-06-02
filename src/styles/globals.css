@@ -6,7 +6,8 @@
 
 @layer base {
   body {
-    @apply bg-flicks-dark text-white font-inter;
+    @apply bg-[#0A0A0A] text-white;
+    font-family: 'Inter', sans-serif;
   }
   
   ::-webkit-scrollbar {
@@ -14,11 +15,11 @@
   }
   
   ::-webkit-scrollbar-track {
-    @apply bg-flicks-surface;
+    @apply bg-[#1A1A1A];
   }
   
   ::-webkit-scrollbar-thumb {
-    @apply bg-gradient-to-b from-flicks-primary to-flicks-secondary rounded-full;
+    @apply bg-gradient-to-b from-[#FF5A5F] to-[#00C4FF] rounded-full;
   }
 }
 
@@ -28,11 +29,11 @@
   }
   
   .gradient-text {
-    @apply bg-gradient-to-r from-flicks-primary to-flicks-secondary bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-[#FF5A5F] to-[#00C4FF] bg-clip-text text-transparent;
   }
   
   .story-ring {
-    @apply bg-gradient-to-tr from-flicks-primary via-flicks-secondary to-yellow-500 p-[2px] rounded-full;
+    @apply bg-gradient-to-tr from-[#FF5A5F] via-[#00C4FF] to-yellow-500 p-[2px] rounded-full;
   }
   
   .like-animation {
