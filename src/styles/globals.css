@@ -1,25 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
 @layer base {
+  * {
+    @apply m-0 p-0 box-border;
+  }
+  
   body {
-    @apply bg-[#0A0A0A] text-white;
-    font-family: 'Inter', sans-serif;
+    @apply bg-flicks-dark text-white font-inter antialiased;
   }
   
   ::-webkit-scrollbar {
     width: 4px;
+    height: 4px;
   }
   
   ::-webkit-scrollbar-track {
-    @apply bg-[#1A1A1A];
+    @apply bg-flicks-surface;
   }
   
   ::-webkit-scrollbar-thumb {
-    @apply bg-gradient-to-b from-[#FF5A5F] to-[#00C4FF] rounded-full;
+    @apply bg-gradient-to-b from-flicks-primary to-flicks-secondary rounded-full;
   }
 }
 
@@ -28,12 +32,36 @@
     @apply bg-white/5 backdrop-blur-md border border-white/10;
   }
   
+  .glass-card {
+    @apply bg-flicks-surface/80 backdrop-blur-sm border border-white/10 rounded-2xl;
+  }
+  
   .gradient-text {
-    @apply bg-gradient-to-r from-[#FF5A5F] to-[#00C4FF] bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-flicks-primary to-flicks-secondary bg-clip-text text-transparent;
+  }
+  
+  .gradient-bg {
+    @apply bg-gradient-to-r from-flicks-primary to-flicks-secondary;
   }
   
   .story-ring {
-    @apply bg-gradient-to-tr from-[#FF5A5F] via-[#00C4FF] to-yellow-500 p-[2px] rounded-full;
+    @apply bg-gradient-to-tr from-flicks-primary via-flicks-secondary to-yellow-500 p-[2px] rounded-full;
+  }
+  
+  .story-ring-active {
+    @apply bg-gradient-to-tr from-flicks-primary via-flicks-secondary to-yellow-500 animate-pulse;
+  }
+  
+  .input-field {
+    @apply w-full bg-white/10 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-flicks-primary transition-all;
+  }
+  
+  .btn-primary {
+    @apply px-6 py-2 gradient-bg rounded-full font-semibold hover:opacity-90 transition disabled:opacity-50;
+  }
+  
+  .btn-outline {
+    @apply px-6 py-2 border border-flicks-primary rounded-full font-semibold hover:bg-flicks-primary/10 transition;
   }
   
   .like-animation {
@@ -43,5 +71,16 @@
   @keyframes likeBurst {
     0% { transform: scale(0); opacity: 1; }
     100% { transform: scale(2); opacity: 0; }
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
