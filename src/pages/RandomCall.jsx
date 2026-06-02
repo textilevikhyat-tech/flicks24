@@ -9,10 +9,9 @@ const RandomCall = () => {
   const [duration, setDuration] = useState(0)
   const [peerName, setPeerName] = useState(null)
   const localVideoRef = useRef(null)
-  const remoteVideoRef = useRef(null)
   const intervalRef = useRef(null)
 
-  // Mock video call - 실제 Agora 구현은 별도
+  // Mock video call - actual Agora implementation later
   const startSearch = () => {
     setIsSearching(true)
     setTimeout(() => {
@@ -114,4 +113,20 @@ const RandomCall = () => {
             {/* Call Controls */}
             <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-6">
               <button onClick={() => setIsMuted(!isMuted)} className="w-12 h-12 rounded-full bg-white/20 backdrop-blur flex items-center justify-center hover:bg-white/30 transition">
-                {isMuted ? <FiMicOff className="w-5 h-5 text-red-500"
+                {isMuted ? <FiMicOff className="w-5 h-5 text-red-500" /> : <FiMic className="w-5 h-5 text-white" />}
+              </button>
+              <button onClick={() => setIsVideoOff(!isVideoOff)} className="w-12 h-12 rounded-full bg-white/20 backdrop-blur flex items-center justify-center hover:bg-white/30 transition">
+                {isVideoOff ? <FiVideoOff className="w-5 h-5 text-red-500" /> : <FiVideo className="w-5 h-5 text-white" />}
+              </button>
+              <button onClick={endCall} className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center hover:bg-red-600 transition">
+                <FiPhoneMissed className="w-5 h-5 text-white" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default RandomCall
