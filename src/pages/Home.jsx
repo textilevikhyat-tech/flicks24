@@ -8,59 +8,72 @@ const Home = () => {
   const { user } = useAuth()
   const [posts, setPosts] = useState([])
   const [newPost, setNewPost] = useState('')
-  const [newPostImage, setNewPostImage] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [stories] = useState([
+  const [commentText, setCommentText] = useState({})
+  const [showComments, setShowComments] = useState({})
+  const [likedPosts, setLikedPosts] = useState({})
+
+  const stories = [
     { id: 1, username: 'Your Story', avatar: user?.user_metadata?.avatar, isAdd: true },
     { id: 2, username: 'alex_chen', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex', isLive: true },
     { id: 3, username: 'emily_wilson', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emily', isLive: false },
     { id: 4, username: 'mike_johnson', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike', isLive: false },
-    { id: 5, username: 'sarah_chen', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah', isLive: true },
-  ])
+  ]
 
   useEffect(() => {
     fetchPosts()
   }, [])
 
   const fetchPosts = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('posts')
       .select('*, user:users(username, avatar, id)')
       .order('created_at', { ascending: false })
     
-    if (data) setPosts(data)
+    if (data) {
+      setPosts(data)
+      // Initialize liked states
+      const likes = {}
+      data.forEach(post => { likes[post.id] = false })
+      setLikedPosts(likes)
+    }
     setLoading(false)
   }
 
-  const handleCreatePost = async () => {
-    if (!newPost.trim()) return
+  const handleLike = async (postId) => {
+    setLikedPosts(prev => ({ ...prev, [postId]: !prev[postId] }))
     
-    const { data, error } = await supabase
-      .from('posts')
-      .insert([{
-        user_id: user.id,
-        content: newPost,
-        image_url: newPostImage,
-        likes_count: 0,
-        comments_count: 0
-      }])
-      .select()
+    // Update likes in database
+    await supabase.rpc('toggle_like', { post_id: postId, user_id: user.id })
     
-    if (data) {
-      setNewPost('')
-      setNewPostImage(null)
-      fetchPosts()
-    }
+    // Refresh posts to update like count
+    fetchPosts()
   }
 
-  const handleLike = async (postId) => {
-    const { error } = await supabase
-      .from('post_likes')
-      .insert({ post_id: postId, user_id: user.id })
+  const handleComment = async (postId) => {
+    if (!commentText[postId]?.trim()) return
     
-    if (!error) {
-      await supabase.rpc('increment_likes', { post_id: postId })
-      fetchPosts()
+    await supabase.from('comments').insert({
+      post_id: postId,
+      user_id: user.id,
+      content: commentText[postId]
+    })
+    
+    setCommentText(prev => ({ ...prev, [postId]: '' }))
+    fetchPosts()
+  }
+
+  const handleShare = async (post) => {
+    const shareUrl = `${window.location.origin}/post/${post.id}`
+    try {
+      await navigator.share({
+        title: 'Check out this post',
+        text: post.content,
+        url: shareUrl
+      })
+    } catch (err) {
+      navigator.clipboard.writeText(shareUrl)
+      alert('Link copied to clipboard!')
     }
   }
 
@@ -110,15 +123,9 @@ const Home = () => {
           />
         </div>
         <div className="flex justify-between mt-3 pt-3 border-t border-white/10">
-          <button className="flex items-center gap-2 text-gray-400 hover:text-flicks-primary transition">
-            📷 Photo
-          </button>
-          <button className="flex items-center gap-2 text-gray-400 hover:text-flicks-primary transition">
-            🎥 Video
-          </button>
-          <button onClick={handleCreatePost} className="px-4 py-1 bg-flicks-primary rounded-full text-sm font-semibold">
-            Post
-          </button>
+          <button className="flex items-center gap-2 text-gray-400 hover:text-flicks-primary transition">📷 Photo</button>
+          <button className="flex items-center gap-2 text-gray-400 hover:text-flicks-primary transition">🎥 Video</button>
+          <button className="flex items-center gap-2 text-gray-400 hover:text-flicks-primary transition">🔗 Link</button>
         </div>
       </div>
 
@@ -146,21 +153,55 @@ const Home = () => {
               <img src={post.image_url} alt="Post" className="rounded-xl mb-3 w-full" />
             )}
 
-            {/* Post Actions */}
+            {/* Like & Comment Counts */}
+            <div className="flex justify-between text-sm text-gray-400 mb-2">
+              <span>{post.likes_count || 0} likes</span>
+              <span>{post.comments_count || 0} comments</span>
+            </div>
+
+            {/* Action Buttons */}
             <div className="flex justify-between pt-3 border-t border-white/10">
-              <button onClick={() => handleLike(post.id)} className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition">
-                <FiHeart /> {post.likes_count || 0}
+              <button onClick={() => handleLike(post.id)} className={`flex items-center gap-2 transition ${likedPosts[post.id] ? 'text-red-500' : 'text-gray-400 hover:text-red-500'}`}>
+                <FiHeart className={likedPosts[post.id] ? 'fill-red-500' : ''} /> Like
               </button>
-              <button className="flex items-center gap-2 text-gray-400 hover:text-flicks-secondary transition">
-                <FiMessageCircle /> {post.comments_count || 0}
+              <button onClick={() => setShowComments(prev => ({ ...prev, [post.id]: !prev[post.id] }))} className="flex items-center gap-2 text-gray-400 hover:text-flicks-secondary transition">
+                <FiMessageCircle /> Comment
               </button>
-              <button className="flex items-center gap-2 text-gray-400 hover:text-green-500 transition">
+              <button onClick={() => handleShare(post)} className="flex items-center gap-2 text-gray-400 hover:text-green-500 transition">
                 <FiShare2 /> Share
               </button>
               <button className="flex items-center gap-2 text-gray-400 hover:text-yellow-500 transition">
                 <FiBookmark /> Save
               </button>
             </div>
+
+            {/* Comments Section */}
+            {showComments[post.id] && (
+              <div className="mt-3 pt-3 border-t border-white/10">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Write a comment..."
+                    value={commentText[post.id] || ''}
+                    onChange={(e) => setCommentText(prev => ({ ...prev, [post.id]: e.target.value }))}
+                    className="flex-1 bg-white/10 rounded-full px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-flicks-primary"
+                  />
+                  <button onClick={() => handleComment(post.id)} className="p-2 bg-flicks-primary rounded-full">
+                    <FiSend className="w-4 h-4" />
+                  </button>
+                </div>
+                {/* Mock Comments */}
+                <div className="mt-3 space-y-2">
+                  <div className="flex gap-2">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=commenter1" alt="" className="w-6 h-6 rounded-full" />
+                    <div className="flex-1 bg-white/5 rounded-lg p-2">
+                      <p className="text-xs font-semibold">john_doe</p>
+                      <p className="text-sm">Great post! 🔥</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       ))}
